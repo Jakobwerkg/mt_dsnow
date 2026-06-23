@@ -28,6 +28,10 @@ library(lubridate)
 library(nixmass)
 library(tidyverse)
 
+# Resolve the directory this script lives in (works on Mac, Linux, Windows)
+.args0      <- commandArgs(trailingOnly = FALSE)
+SCRIPT_DIR  <- normalizePath(dirname(sub("--file=", "", .args0[grep("--file=", .args0)])))
+
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
@@ -67,9 +71,7 @@ EPS <- 1e-6                   # minimum snow depth [m] for density calculation
 # DATA
 # =============================================================================
 
-d_obs <- get(load(
-  "/Users/jakobwerkgarner/code/mt_dsnow/calibration/calibration_Win21/data/H_SWE_obs.Rda"
-))
+d_obs <- get(load(file.path(SCRIPT_DIR, "data", "H_SWE_obs.Rda")))
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -412,7 +414,7 @@ weight_vals <- c(SWE_NRMSE = WEIGHT_SWE_NRMSE, RHO_NRMSE = WEIGHT_RHO_NRMSE,
 
 weight_tag <- paste0(names(weight_vals), "_", fmt_tag(weight_vals), collapse = "__")
 
-save_dir <- "/Users/jakobwerkgarner/code/mt_dsnow/calibration/calibration_WIN21/data/R_opt_logs"
+save_dir <- file.path(SCRIPT_DIR, "data", "R_opt_logs")
 dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
 save_file <- file.path(save_dir, paste0("opt_results__", weight_tag, ".rds"))
 

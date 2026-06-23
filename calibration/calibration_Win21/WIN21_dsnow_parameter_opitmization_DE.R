@@ -31,7 +31,11 @@ library(doParallel)
 library(lubridate)
 library(nixmass)
 library(tidyverse)
-library(DEoptim)              # <-- NEW: Differential Evolution package
+library(DEoptim)
+
+# Resolve the directory this script lives in (works on Mac, Linux, Windows)
+.args0      <- commandArgs(trailingOnly = FALSE)
+SCRIPT_DIR  <- normalizePath(dirname(sub("--file=", "", .args0[grep("--file=", .args0)])))
 
 # ----------------------------------------------------------------------------
 # CONFIGURATION (USER-ADJUSTABLE)
@@ -70,7 +74,7 @@ EPS <- 1e-6                      # threshold for snow depth in density calculati
 # ----------------------------------------------------------------------------
 # LOAD OBSERVATIONAL DATA (from first script)
 # ----------------------------------------------------------------------------
-d_obs <- get(load("/Users/jakobwerkgarner/code/mt_dsnow/calibration/calibration_Win21/data/H_SWE_obs.Rda"))
+d_obs <- get(load(file.path(SCRIPT_DIR, "data", "H_SWE_obs.Rda")))
 
 # Exclude stations as in the first script
 d_obs[["kuehtai"]] <- NULL
@@ -555,7 +559,7 @@ weight_tag <- paste0(
 )
 
 # Insert "Win21" into the filename
-save_dir <- "/Users/jakobwerkgarner/code/mt_dsnow/calibration/calibration_Win21/data/R_opt_logs_DE"
+save_dir <- file.path(SCRIPT_DIR, "data", "R_opt_logs_DE")
 dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
 save_file <- file.path(save_dir, paste0("opt_results_Win21_DE__", weight_tag, ".rds"))
 
