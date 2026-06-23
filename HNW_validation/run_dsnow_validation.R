@@ -13,7 +13,7 @@ suppressPackageStartupMessages({
 # SETTINGS
 # ─────────────────────────────────────────────────────────────────────────────
 Mag25_nc_file    <- "/Users/jakobwerkgarner/code/mt_dsnow/calibration/calibration_data/raw_data/Mag25/SLF_dataset/Mag25_all.nc"
-out_nc_file      <- "/Users/jakobwerkgarner/code/mt_dsnow/HNW_validation/validation_data/Mag25_dsnow_validation_default_rho_max_dyn.nc"
+out_nc_file      <- "/Users/jakobwerkgarner/code/mt_dsnow/HNW_validation/validation_data/Mag25_dsnow_validation_6CNM_rho_max_dyn.nc"
 exclude_stations <- c("Weisfluh_Joch")
 
 # Use dynamic rho_max parameterisation?  FALSE = static (Winkler 2021 style)
@@ -21,14 +21,22 @@ dyn_rho_max <- TRUE
 
 # Model parameters — uncomment and edit to override nixmass defaults
 model_opts <- list(
-  # rho_max  = 4.200755e+02,
-  # rho_null = 1.111551e+02,
-  # eta_null = 8.408084e+06,
-  # k        = 2.572082e-02,
-  # tau      = 2.347360e-02,
-  # c_ov     = 5.447552e-04,
-  # k_ov     = 3.965688e-01,
+        rho.max  = 435.070433309075,
+        rho.null = 91.5384109964388,
+        c.ov     = 0.000543696136717114,
+        k.ov     = 0.406722273170686,
+        k        = 0.0290119394435151,
+        tau      = 0.018826726400637,
+        eta.null = 8683442.80023582
 )
+
+    # rho_max  = 435.070433309075,
+    # rho_null = 91.5384109964388,
+    # eta_null = 8683442.80023582,
+    # k        = 0.0290119394435151,
+    # tau      = 0.018826726400637,
+    # c_ov     = 0.000543696136717114,
+    # k_ov     = 0.406722273170686,
 
 # nixmass uses dot-notation; translate any underscore keys
 model_opts <- local({

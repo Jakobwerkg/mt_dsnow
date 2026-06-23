@@ -327,7 +327,7 @@ minimize_score <- function(par, data, verbose = FALSE) {
 # =============================================================================
 
 par_lower <- c(rho.max  = 200,  rho.null = 20,  c.ov = 1e-6,
-               k.ov     = 0,    k        = 0,   tau = 0,   eta.null = 1e6)
+               k.ov     = 0,    k        = 0.01,   tau = 0,   eta.null = 1e6)
 
 par_upper <- c(rho.max  = 600,  rho.null = 200, c.ov = 0.01,
                k.ov     = 1,    k        = 0.5, tau = 1,   eta.null = 2e7)

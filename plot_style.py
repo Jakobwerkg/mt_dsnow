@@ -107,6 +107,7 @@ class FIG:
     GRID3x3 = (12,  9)   # 3×3 panel grid
     WIDE2x2 = (15, 10)   # 2×2 boxplot / comparison grid
     BOX4    = (12,  5)   # 1×4 side-by-side boxplots
+    SCAT1   = (6,  6)       # single scatter plots
 
     DPI  = 350
     SAVE = dict(dpi=DPI, bbox_inches="tight", format="png")
