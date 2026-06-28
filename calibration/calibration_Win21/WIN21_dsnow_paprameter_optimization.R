@@ -225,7 +225,7 @@ zoo_to_tibble <- function(obs_list) {
     out[[station]] <- tibble(
       date    = as.Date(index(x)),
       name    = station,
-      hs      = dat$Hobs,
+      hs      = dat$Hobs / 100,  # cm -> m
       swe_obs = dat$SWEobs,
       block   = set_season(index(x))
     )
@@ -240,15 +240,16 @@ d_obs_val_tibble <- zoo_to_tibble(d_obs_val)
 # OBJECTIVE FUNCTION
 # =============================================================================
 
-minimize_score <- function(par, data, verbose = FALSE) {
+minimize_score <- function(par, data, scale, verbose = FALSE) {
 
-  if (any(par < par_lower | par > par_upper)) return(1e12)
+  par_real <- par * scale
 
   result <- tryCatch({
 
     if (verbose) {
-      nms <- if (!is.null(names(par))) names(par) else paste0("p", seq_along(par))
-      cat("params =", paste(paste0(nms, "=", round(par, 6)), collapse = ", "), "\n")
+      nms <- if (!is.null(names(par_real))) names(par_real) else paste0("p", seq_along(par_real))
+      cat("scaled   =", paste(paste0(nms, "=", round(par, 6)), collapse = ", "), "\n")
+      cat("unscaled =", paste(paste0(nms, "=", round(par_real, 6)), collapse = ", "), "\n")
     }
 
     # Run model per station and season block in parallel
@@ -276,10 +277,10 @@ minimize_score <- function(par, data, verbose = FALSE) {
             mutate(date = as.character(date)) %>%
             nixmass::swe.delta.snow(
               model_opts = list(
-                rho.max  = par[1], rho.null = par[2],
-                c.ov     = par[3], k.ov     = par[4],
-                k        = par[5], tau      = par[6],
-                eta.null = par[7]
+                rho.max  = par_real[1], rho.null = par_real[2],
+                c.ov     = par_real[3], k.ov     = par_real[4],
+                k        = par_real[5], tau      = par_real[6],
+                eta.null = par_real[7]
               ),
               dyn_rho_max = FALSE
             ),
@@ -328,13 +329,17 @@ minimize_score <- function(par, data, verbose = FALSE) {
 # PARAMETER BOUNDS AND START VALUES
 # =============================================================================
 
-par_lower <- c(rho.max  = 200,  rho.null = 20,  c.ov = 1e-6,
-               k.ov     = 0,    k        = 0.01,   tau = 0,   eta.null = 1e6)
+# Physical (unscaled) parameter bounds — Schellander reference ranges.
+# Nelder-Mead runs unconstrained (like the reference); these are kept for the
+# in-bounds sanity check below and to stay consistent with the DE script.
+par_lower <- c(rho.max  = 300,  rho.null = 50,  c.ov = 1e-6,
+               k.ov     = 0.01, k        = 0.01, tau = 0.01, eta.null = 1e6)
 
-par_upper <- c(rho.max  = 600,  rho.null = 200, c.ov = 0.01,
-               k.ov     = 1,    k        = 0.5, tau = 1,   eta.null = 2e7)
+par_upper <- c(rho.max  = 600,  rho.null = 200, c.ov = 1e-3,
+               k.ov     = 10,   k        = 0.2,  tau = 0.2,  eta.null = 2e7)
 
-par_start <- c(
+# Physical start values
+par_delta <- c(
   rho.max  = 401.2588,
   rho.null = 81.19417,
   c.ov     = 0.0005104722,
@@ -344,9 +349,15 @@ par_start <- c(
   eta.null = 8523356
 )
 
-cat("\nParameter bounds:\n")
+# Per-parameter scaling so the optimizer works on values of order 1.
+# minimize_score multiplies back by `scale` to recover physical units.
+par_scale <- c(1000, 1000, 0.001, 1, 0.1, 0.1, 1e7)
+par_start <- par_delta / par_scale
+
+cat("\nParameter bounds (physical):\n")
 print(rbind(lower = par_lower, upper = par_upper))
-cat("\nStarting parameters:\n"); print(par_start)
+cat("\nStarting parameters (scaled):\n");   print(par_start)
+cat("\nStarting parameters (unscaled):\n"); print(par_start * par_scale)
 
 # =============================================================================
 # PARALLEL SETUP
@@ -368,30 +379,33 @@ parallel::clusterExport(cl, c(
 # =============================================================================
 
 cat("\nTesting objective function at start values...\n")
-cat("Initial score =", minimize_score(par_start, d_obs_fit_tibble, verbose = TRUE), "\n")
+cat("Initial score =", minimize_score(par_start, d_obs_fit_tibble, scale = par_scale, verbose = TRUE), "\n")
 
 # =============================================================================
 # OPTIMIZATION
 # =============================================================================
 
-cat("\nStarting optimization (Nelder-Mead)...\n")
+cat("\nStarting optimization (optimx default: Nelder-Mead -> BFGS, follow.on)...\n")
 opt <- optimx(
   par     = par_start,
   fn      = minimize_score,
   data    = d_obs_fit_tibble,
+  scale   = par_scale,
   verbose = TRUE,
-  method  = "Nelder-Mead",
-  control = list(trace = 1, maxit = 200)
+  control = list(trace = 1, follow.on = TRUE)
 )
 
-opt_df     <- as.data.frame(opt)
-best_idx   <- which.min(opt_df$value)
-best_par   <- as.numeric(opt_df[best_idx, names(par_start), drop = TRUE])
+opt_df      <- as.data.frame(opt)
+best_idx    <- which.min(opt_df$value)
+best_scaled <- as.numeric(opt_df[best_idx, names(par_start), drop = TRUE])
+names(best_scaled) <- names(par_start)
+best_par    <- best_scaled * par_scale   # back to physical units
 names(best_par) <- names(par_start)
-best_value <- opt_df$value[best_idx]
+best_value  <- opt_df$value[best_idx]
 
 cat("\nBest score:", best_value, "\n")
-cat("Best parameters:\n"); print(best_par)
+cat("Best parameters (scaled):\n");   print(best_scaled)
+cat("Best parameters (unscaled):\n"); print(best_par)
 
 fmt <- function(x) format(x, scientific = FALSE, trim = TRUE, digits = 10)
 cat(sprintf(
@@ -414,7 +428,7 @@ weight_vals <- c(SWE_NRMSE = WEIGHT_SWE_NRMSE, RHO_NRMSE = WEIGHT_RHO_NRMSE,
 
 weight_tag <- paste0(names(weight_vals), "_", fmt_tag(weight_vals), collapse = "__")
 
-save_dir <- file.path(SCRIPT_DIR, "data", "R_opt_logs")
+save_dir <- file.path("/Users/jakobwerkgarner/code/mt_dsnow/calibration/AA_opt_out/Win21/data/R_opt_logs")
 dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
 save_file <- file.path(save_dir, paste0("opt_results__", weight_tag, ".rds"))
 

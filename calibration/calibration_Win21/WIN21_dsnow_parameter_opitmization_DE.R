@@ -432,12 +432,12 @@ print(par_start * par_scale)
 # ----------------------------------------------------------------------------
 # BOUNDS FOR DIFFERENTIAL EVOLUTION (physical ranges, then scaled)
 # ----------------------------------------------------------------------------
-# Physical (unscaled) lower and upper bounds
-lower_unscaled <- c(rho.max  = 200,   rho.null = 20,   c.ov = 1e-6,
-                    k.ov     = 0,     k        = 0,    tau = 0,
+# Physical (unscaled) lower and upper bounds — Schellander reference ranges
+lower_unscaled <- c(rho.max  = 300,   rho.null = 50,   c.ov = 1e-6,
+                    k.ov     = 0.01,  k        = 0.01, tau = 0.01,
                     eta.null = 1e6)
-upper_unscaled <- c(rho.max  = 600,   rho.null = 200,  c.ov = 0.01,
-                    k.ov     = 1,     k        = 0.5,  tau = 1,
+upper_unscaled <- c(rho.max  = 600,   rho.null = 200,  c.ov = 1e-3,
+                    k.ov     = 10,    k        = 0.2,  tau = 0.2,
                     eta.null = 2e7)
 
 # Scale the bounds

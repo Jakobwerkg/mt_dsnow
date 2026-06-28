@@ -78,6 +78,10 @@ class C:
     DSNOW     = "#E69F00"   # amber        — ΔSnow model
     HS2SWE    = "#009E73"   # blue-green   — HS2SWE model
     HS        = "#999999"   # mid-grey     — snow height (hs), auxiliary
+    NM        = "#35A6DF"  #
+    DE        = "#882255"   # dark grey    — Differential Evolution optimizer
+
+
 
     # Convenience list for cycling through models / datasets
     CYCLE = [DSNOW, HS2SWE, MAGNUSSON, SNOWPACK, WINKLER, OBS, HS]

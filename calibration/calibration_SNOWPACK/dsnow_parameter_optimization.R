@@ -342,6 +342,20 @@ par_start <- par_delta / par_scale
 cat("\nStarting parameters (scaled):\n");   print(par_start)
 cat("\nStarting parameters (unscaled):\n"); print(par_start * par_scale)
 
+# --- Physical (unscaled) parameter bounds — Schellander reference ranges.
+# Nelder-Mead runs unconstrained (like the reference); kept for the in-bounds
+# sanity check and to stay consistent with the DE script.
+par_lower <- c(rho.max  = 300,  rho.null = 50,  c.ov = 1e-6,
+               k.ov     = 0.01, k        = 0.01, tau = 0.01, eta.null = 1e6)
+
+par_upper <- c(rho.max  = 600,  rho.null = 200, c.ov = 1e-3,
+               k.ov     = 10,   k        = 0.2,  tau = 0.2,  eta.null = 2e7)
+
+cat("\nParameter bounds (physical):\n")
+print(rbind(lower = par_lower, upper = par_upper))
+cat("In-bounds check:\n")
+print(ifelse(par_lower <= par_delta & par_delta <= par_upper, "in bounds", "ERROR"))
+
 # =============================================================================
 # PARALLEL SETUP
 # =============================================================================
@@ -368,15 +382,14 @@ cat("Initial score =", minimize_score(par_start, d_obs_fit_tibble, par_scale, ve
 # OPTIMIZATION
 # =============================================================================
 
-cat("\nStarting optimization (Nelder-Mead)...\n")
+cat("\nStarting optimization (optimx default: Nelder-Mead -> BFGS, follow.on)...\n")
 opt <- optimx(
   par     = par_start,
   fn      = minimize_score,
   data    = d_obs_fit_tibble,
   scale   = par_scale,
   verbose = TRUE,
-  method  = "Nelder-Mead",
-  control = list(trace = 1, maxit = 200)
+  control = list(trace = 1, follow.on = TRUE)
 )
 
 opt_df        <- as.data.frame(opt)
