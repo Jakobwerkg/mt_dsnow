@@ -48,10 +48,9 @@ it separately and place it at `snow_to_swe_master/` before running those noteboo
 
 ### Data
 
-Raw and derived data (`.nc`, `.csv`, `.rda`, `.rds`, `.smet`) and all generated figures
-are git-ignored — see `.gitignore`. The repository holds **code only**, with one
-exception: the small Morris design/response arrays in `par_sens/morris_*/*.npy` are kept
-so the sensitivity figures can be reproduced without re-running the multi-hour sweep.
+Raw and derived data (`.nc`, `.csv`, `.rda`, `.rds`, `.npy`, `.smet`) and all generated
+figures are git-ignored — see `.gitignore`. The repository holds **code only**; every
+dataset and figure is reproduced by running the scripts and notebooks in order.
 
 ---
 
