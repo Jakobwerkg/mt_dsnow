@@ -3,7 +3,7 @@ Centralised plot style for the mt_dsnow project.
 
 Usage
 -----
-    from plot_style import apply_style, C, ALPHA, LS, HATCH, SUBSET_COLOR, FIG
+    from plot_style import apply_style, C, ALPHA, LS, HATCH, SUBSET_COLOR, SUBSET_LABEL, FIG
 
     apply_style()          # call once per script / at the top of a notebook
 
@@ -13,9 +13,9 @@ Usage
     ax.fill_between(t, lo, hi, color=C.OBS, alpha=ALPHA.BAND)
 
     # SNOWPACK subsets — decreasing hue encodes subset scope
-    ax.bar(x, y, color=SUBSET_COLOR.ALL,        label="All stations")
-    ax.bar(x, y, color=SUBSET_COLOR.RAIN_GAUGE, label="Rain-gauge subset")
-    ax.bar(x, y, color=SUBSET_COLOR.BELOW_2000, label="< 2000 m subset")
+    ax.bar(x, y, color=SUBSET_COLOR.ALL,        label=SUBSET_LABEL.ALL)         # "SP_all"
+    ax.bar(x, y, color=SUBSET_COLOR.RAIN_GAUGE, label=SUBSET_LABEL.RAIN_GAUGE)  # "SP_RG"
+    ax.bar(x, y, color=SUBSET_COLOR.BELOW_2000, label=SUBSET_LABEL.BELOW_2000)  # "SP_b2000"
 
     # Optimizer variants — DE hatched, Nelder-Mead solid
     ax.bar(x, y, color=col, hatch=HATCH.DE, label="Differential Evolution")
@@ -42,9 +42,16 @@ verified distinguishable under protanopia, deuteranopia, and tritanopia.
 
 SNOWPACK subset colours  (decreasing hue / lightness)
 ------------------------------------------------------
-    SUBSET_COLOR.ALL         #8E2A84   full hue    — all stations
-    SUBSET_COLOR.RAIN_GAUGE  #B06AA9   ~70 % hue   — rain-gauge subset
-    SUBSET_COLOR.BELOW_2000  #D2AACE   ~40 % hue   — altitude < 2000 m subset
+    SUBSET_COLOR.ALL         #8E2A84   full hue    — SP_all   (all stations)
+    SUBSET_COLOR.RAIN_GAUGE  #B06AA9   ~70 % hue   — SP_RG    (rain-gauge subset)
+    SUBSET_COLOR.BELOW_2000  #D2AACE   ~40 % hue   — SP_b2000 (altitude < 2000 m subset)
+
+SNOWPACK subset display labels  (SUBSET_LABEL)
+------------------------------------------------
+Canonical names for legends / titles — always use these in plots:
+    SUBSET_LABEL.ALL         "SP_all"
+    SUBSET_LABEL.BELOW_2000  "SP_b2000"
+    SUBSET_LABEL.RAIN_GAUGE  "SP_RG"
 
 Optimizer hatch variants
 ------------------------
@@ -96,7 +103,7 @@ class ALPHA:
 class FIG:
     """Standard figure sizes and save settings for the mt_dsnow project.
 
-    All figures are saved as PNG at 350 dpi — no PDF output.
+    All figures are saved as PNG at 800 dpi — no PDF output.
 
     Usage
     -----
@@ -113,7 +120,7 @@ class FIG:
     BOX4    = (12,  5)   # 1×4 side-by-side boxplots
     SCAT1   = (6,  6)       # single scatter plots
 
-    DPI  = 350
+    DPI  = 800
     SAVE = dict(dpi=DPI, bbox_inches="tight", format="png")
 
 
@@ -136,9 +143,22 @@ class SUBSET_COLOR:
     Decreasing lightness encodes subset scope; all three are tints of
     C.SNOWPACK (#8E2A84) blended toward white at 100 %, 70 %, and 40 %.
     """
-    ALL        = "#8E2A84"   # full hue  — all stations
-    RAIN_GAUGE = "#B06AA9"   # ~70 % hue — rain-gauge subset
-    BELOW_2000 = "#D2AACE"   # ~40 % hue — altitude < 2000 m subset
+    ALL        = "#8E2A84"   # full hue  — SP_all
+    RAIN_GAUGE = "#B06AA9"   # ~70 % hue — SP_RG
+    BELOW_2000 = "#D2AACE"   # ~40 % hue — SP_b2000
+
+    CYCLE = [ALL, RAIN_GAUGE, BELOW_2000]
+
+
+class SUBSET_LABEL:
+    """Canonical display names for the three SNOWPACK subsets.
+
+    Use these (and only these) in legends, titles, and tick labels so the
+    naming is identical across every figure of the project.
+    """
+    ALL        = "SP_all"     # all stations
+    RAIN_GAUGE = "SP_RG"      # rain-gauge subset
+    BELOW_2000 = "SP_b2000"   # altitude < 2000 m subset
 
     CYCLE = [ALL, RAIN_GAUGE, BELOW_2000]
 
@@ -161,9 +181,9 @@ class HATCH:
 _STYLE: dict = {
     # Figure — slightly smaller default, tighter outer padding
     "figure.figsize":        (9, 4.5),
-    "figure.dpi":            100,
+    "figure.dpi":            800,
     "figure.facecolor":      "white",
-    "savefig.dpi":           350,
+    "savefig.dpi":           800,
     "savefig.bbox":          "tight",
     "savefig.pad_inches":    0.08,
     "savefig.facecolor":     "white",
@@ -257,7 +277,7 @@ def print_palette() -> None:
 
 def print_subset_colors() -> None:
     """Print a colour swatch for the three SNOWPACK subset tints."""
-    labels = ["All stations",       "Rain-gauge subset",  "< 2000 m subset"]
+    labels = [SUBSET_LABEL.ALL,     SUBSET_LABEL.RAIN_GAUGE, SUBSET_LABEL.BELOW_2000]
     colors = [SUBSET_COLOR.ALL,     SUBSET_COLOR.RAIN_GAUGE, SUBSET_COLOR.BELOW_2000]
 
     fig, ax = plt.subplots(figsize=(len(labels) * 2.0, 1.4))
@@ -403,7 +423,12 @@ def add_subplot_labels(axs, start="a", x=0.01, y=0.99):
     x, y : float
         Axes-relative text position (0..1). Defaults place label at top-left.
     """
-    axes = axs.ravel() if hasattr(axs, "ravel") else [axs]
+    if hasattr(axs, "ravel"):
+        axes = axs.ravel()
+    elif isinstance(axs, (list, tuple)):
+        axes = axs
+    else:
+        axes = [axs]
     start_ord = ord(start)
     for i, ax in enumerate(axes):
         ax.text(
@@ -413,7 +438,7 @@ def add_subplot_labels(axs, start="a", x=0.01, y=0.99):
             transform=ax.transAxes,
             ha="left",
             va="top",
-            fontsize=10,
-            fontweight="normal",
-            color="#777777",
+            fontsize=11,
+            fontweight="bold",
+            color="#222222",
         )

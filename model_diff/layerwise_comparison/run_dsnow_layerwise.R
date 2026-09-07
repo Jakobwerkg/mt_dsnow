@@ -13,9 +13,36 @@ suppressPackageStartupMessages({
   library(lubridate)
 })
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Project root
+# Located through the .projectroot marker file, so the repository can live
+# anywhere.  Works both for `Rscript path/to/script.R` and interactive use.
+# ─────────────────────────────────────────────────────────────────────────────
+find_project_root <- function(start = NULL) {
+  if (is.null(start)) {
+    file_arg <- grep("^--file=", commandArgs(trailingOnly = FALSE), value = TRUE)
+    start <- if (length(file_arg) > 0) {
+      dirname(normalizePath(sub("^--file=", "", file_arg[1])))
+    } else {
+      getwd()
+    }
+  }
+  p <- normalizePath(start, mustWork = TRUE)
+  while (!file.exists(file.path(p, ".projectroot"))) {
+    if (dirname(p) == p) {
+      stop("Could not locate the project root (.projectroot marker not found).")
+    }
+    p <- dirname(p)
+  }
+  p
+}
+
+ROOT <- find_project_root()
+
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
-Mag25_nc <- "/Users/jakobwerkgarner/code/mt_dsnow/calibration/calibration_data/raw_data/Mag25/SLF_dataset/Mag25_all.nc"
-out_nc   <- "/Users/jakobwerkgarner/code/mt_dsnow/model_diff/layerwise_data/dyn_rho_max/dsnow_layerwise_Mag25_default.nc"
+Mag25_nc <- file.path(ROOT, "calibration/calibration_data/raw_data/mag25/slf_dataset/Mag25_all.nc")
+out_nc   <- file.path(ROOT, "model_diff/layerwise_data/dyn_rho_max/dsnow_layerwise_Mag25_default.nc")
 
 # ── Model settings (Winkler 2021 static defaults) ──────────────────────────────
 dyn_rho_max <- TRUE

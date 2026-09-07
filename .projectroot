@@ -1,0 +1,8 @@
+Marker file identifying the repository root.
+
+Python  :  ROOT = next(p for p in [Path.cwd(), *Path.cwd().parents]
+                       if (p / ".projectroot").exists())
+R       :  see the `find_project_root()` helper at the top of each script.
+
+Do not delete or move this file — every script and notebook locates its
+data through it, so that the repository works from any checkout location.
