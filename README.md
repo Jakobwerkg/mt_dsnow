@@ -63,10 +63,7 @@ dataset and figure is reproduced by running the scripts and notebooks in order.
 | `calibration/optimisation_output/` | One directory per subset (`win21`, `sp_all`, `sp_rg`, `sp_b2000`, `dyn_rho_max`) holding that run's input data, optimiser logs and result summaries. `helpers/` collects and tabulates them. |
 | `calibration_ranking/` | Ranking and overview plots of every calibrated parameter set — across subsets, optimisers and objective functions. |
 | `hnw_validation/` | Independent validation of the calibrated parameter sets against observed new-snow water equivalent (HNW) and SWE. `full_validation/` runs all parameter sets; results are plotted in `plot_validation_results.ipynb`. |
-| `single_station_season_comparison/` | Station × season comparison of ΔSnow vs. HS2SWE vs. observations — metrics table, ranking, and example season timeseries. |
-| `model_diff/` | Where the two models actually differ: bulk vs. layerwise density (`layerwise_comparison/`), SWE gain/loss decomposition (`hs_and_swe/`), density comparisons (`density_comparison/`) and isolated process modules such as dry settling (`process_modules/`). |
 | `par_sens/` | Morris parameter-sensitivity analysis, run separately per dataset and compared jointly in `morris_comparison.ipynb`. |
-| `hs2swe/` | Python implementation of the HS2SWE model used throughout. |
 | `plot_style.py` | Project-wide plot style — colours, linestyles, subset labels, subplot lettering. Imported by every notebook. |
 
 ## Running the calibration

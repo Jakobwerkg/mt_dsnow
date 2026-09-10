@@ -117,6 +117,13 @@ snow_to_swe_master/
 supp/
 
 # =========================
+# Work kept local only (not part of the published repository)
+# =========================
+hs2swe/model/
+model_diff/
+single_station_season_comparison/
+
+# =========================
 # Archive folders (old / superseded work, kept locally only)
 # =========================
 Archive/
