@@ -119,6 +119,7 @@ supp/
 # =========================
 # Work kept local only (not part of the published repository)
 # =========================
+calibration_ranking/
 hs2swe/model/
 model_diff/
 single_station_season_comparison/

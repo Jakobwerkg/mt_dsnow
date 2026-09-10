@@ -61,7 +61,6 @@ dataset and figure is reproduced by running the scripts and notebooks in order.
 | `calibration/calibration_data/` | Raw-data ingestion, quality checks and conversion of all three datasets into common `.nc` / `.rda` / `.csv` formats. Per-dataset subfolders under `raw_data/` (`win21`, `mag25`) and `snowpack_data/`. |
 | `calibration/calibration_win21/`, `calibration/calibration_snowpack/` | ΔSnow parameter optimisation in R — `_nm.R` = Nelder–Mead, `_de.R` = Differential Evolution. |
 | `calibration/optimisation_output/` | One directory per subset (`win21`, `sp_all`, `sp_rg`, `sp_b2000`, `dyn_rho_max`) holding that run's input data, optimiser logs and result summaries. `helpers/` collects and tabulates them. |
-| `calibration_ranking/` | Ranking and overview plots of every calibrated parameter set — across subsets, optimisers and objective functions. |
 | `hnw_validation/` | Independent validation of the calibrated parameter sets against observed new-snow water equivalent (HNW) and SWE. `full_validation/` runs all parameter sets; results are plotted in `plot_validation_results.ipynb`. |
 | `par_sens/` | Morris parameter-sensitivity analysis, run separately per dataset and compared jointly in `morris_comparison.ipynb`. |
 | `plot_style.py` | Project-wide plot style — colours, linestyles, subset labels, subplot lettering. Imported by every notebook. |
