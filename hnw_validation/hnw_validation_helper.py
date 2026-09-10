@@ -125,7 +125,22 @@ def _cb_ticks(vmax):
     return [10**i for i in range(n_decades + 1)]
 
 
-def _plot_validation(x, y, stats, model_name, lim, xlabel, ylabel, cmap="viridis"):
+def _stats_textbox(stats, unit="mm"):
+    """Format the in-panel metric summary. RMSE and Bias carry the data unit;
+    Rel. bias is a ratio and R2 is dimensionless."""
+    u = f" {unit}" if unit else ""
+    lines = [
+        f"$R^2$: {stats['R2']:.2f}",
+        f"RMSE: {stats['RMSE']:.1f}{u}",
+        f"Bias: {stats['Bias']:.2f}{u}",
+        f"Rel. bias: {stats['Rel_BIAS']:.1%}",
+    ]
+    if "N" in stats:
+        lines.append(f"N: {stats['N']:,}")
+    return "\n".join(lines)
+
+
+def _plot_validation(x, y, stats, model_name, lim, xlabel, ylabel, cmap="viridis", unit="mm"):
     """Generic single-panel validation density scatter."""
 
     vmax = _nice_vmax(len(x))
@@ -163,12 +178,7 @@ def _plot_validation(x, y, stats, model_name, lim, xlabel, ylabel, cmap="viridis
     ax.set_ylabel(ylabel)
     ax.set_title(model_name)
 
-    textstr = (
-        f"$R^2$: {stats['R2']:.2f}\n"
-        f"Bias: {stats['Bias']:.2f}\n"
-        f"RMSE: {stats['RMSE']:.1f}\n"
-        f"Rel_BIAS: {stats['Rel_BIAS']:.1%}\n"
-    )
+    textstr = _stats_textbox(stats, unit)
 
     ax.text(
         0.03, 0.97, textstr,
@@ -184,7 +194,7 @@ def _plot_validation(x, y, stats, model_name, lim, xlabel, ylabel, cmap="viridis
     fig.tight_layout()
 
 
-def _plot_validation_ax(ax, x, y, stats, title, lim, xlabel, ylabel, fig, cmap="viridis"):
+def _plot_validation_ax(ax, x, y, stats, title, lim, xlabel, ylabel, fig, cmap="viridis", unit="mm"):
     """Draw a density validation scatter into an existing Axes."""
 
     vmax = _nice_vmax(len(x))
@@ -220,16 +230,11 @@ def _plot_validation_ax(ax, x, y, stats, title, lim, xlabel, ylabel, fig, cmap="
     ax.set_ylabel(ylabel)
     ax.set_title(title)
 
-    textstr = (
-        f"$R^2$: {stats['R2']:.2f}\n"
-        f"Bias: {stats['Bias']:.2f}\n"
-        f"RMSE: {stats['RMSE']:.1f}\n"
-        f"Rel_BIAS: {stats['Rel_BIAS']:.1%}\n"
-        f"N: {stats['N']}"
-    )
+    textstr = _stats_textbox(stats, unit)
 
+    # y=0.90 leaves the top-left corner free for the a)/b) panel label
     ax.text(
-        0.03, 0.97, textstr,
+        0.03, 0.90, textstr,
         transform=ax.transAxes,
         fontsize=9,
         verticalalignment="top",
@@ -352,6 +357,75 @@ def validate_swe_mag25(df,
     return stats
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ΔSNOW parameter footer
+# Symbols and units follow nixmass::swe.delta.snow (Winkler et al., 2021).
+# ─────────────────────────────────────────────────────────────────────────────
+_PARAM_META = {
+    # key          mathtext symbol   unit (mathtext, "" = dimensionless)
+    "rho.max":  (r"\rho_\mathrm{max}",  r"kg\,m^{-3}"),
+    "rho.null": (r"\rho_0",             r"kg\,m^{-3}"),
+    "rho_h":    (r"\rho_\mathrm{h}",    r"kg\,m^{-3}"),
+    "rho_l":    (r"\rho_\mathrm{l}",    r"kg\,m^{-3}"),
+    "c.ov":     (r"c_\mathrm{ov}",      ""),
+    "k.ov":     (r"k_\mathrm{ov}",      ""),
+    "k":        (r"k",                  r"m^3\,kg^{-1}"),
+    "tau":      (r"\tau",               r"m"),
+    "eta.null": (r"\eta_0",             r"Pa\,s"),
+    "sigma":    (r"\sigma",             ""),
+    "mu":       (r"\mu",                r"d"),
+    "timestep": (r"\Delta t",           r"h"),
+}
+
+# nixmass uses dot-notation; calibration outputs sometimes use underscores.
+_PARAM_ALIASES = {
+    "rho_max": "rho.max",
+    "rho_null": "rho.null",
+    "eta_null": "eta.null",
+    "c_ov": "c.ov",
+    "k_ov": "k.ov",
+}
+
+
+def _fmt_param_value(v):
+    """Format a parameter value as mathtext: plain decimal when readable,
+    m×10^e otherwise (no leading zeros in the exponent)."""
+    if v == 0:
+        return "0"
+    if 1e-2 <= abs(v) < 1e4:
+        return f"{v:.4g}"
+    mantissa, exp_part = f"{v:.2e}".split("e")
+    return rf"{mantissa}\times 10^{{{int(exp_part)}}}"
+
+
+def _format_param_footer(params, n_per_line=None):
+    """Render a parameter dict as centred mathtext footer lines with units.
+
+    Returns a list of strings (one per line); empty if *params* is falsy.
+    ``n_per_line=None`` keeps everything on one line up to 8 parameters and
+    otherwise splits into two balanced lines. Unknown keys fall back to the
+    raw name with no unit, so the footer never silently drops a parameter.
+    """
+    if not params:
+        return []
+
+    if n_per_line is None:
+        n_per_line = len(params) if len(params) <= 8 else -(-len(params) // 2)
+
+    parts = []
+    for key, value in params.items():
+        canon = _PARAM_ALIASES.get(key, key)
+        symbol, unit = _PARAM_META.get(canon, (rf"\mathrm{{{canon}}}", ""))
+        body = f"{symbol} = {_fmt_param_value(value)}"
+        if unit:
+            body += rf"\ \mathrm{{{unit}}}"
+        parts.append(f"${body}$")
+
+    sep = "     "   # wide gap: units already carry visual weight
+    return [sep.join(parts[i:i + n_per_line])
+            for i in range(0, len(parts), n_per_line)]
+
+
 def validate_hnw_swe_combined(hnw_df, swe_df, model_name,
                                params=None,
                                hnw_obs_col="HNW_obs", hnw_mod_col="HNW_mod",
@@ -418,23 +492,7 @@ def validate_hnw_swe_combined(hnw_df, swe_df, model_name,
     print("SWE stats:", stats_swe)
 
     # ── Build params annotation string ────────────────────────────────────────
-    def _fmt_param(v):
-        """Format a scalar as z.zz×10^x, stripping leading zeros from exponent."""
-        if v == 0:
-            return "0"
-        s = f"{v:.2e}"                          # e.g. "1.11e+02"
-        mantissa, exp_part = s.split("e")
-        sign = exp_part[0]                       # '+' or '-'
-        exp_int = int(exp_part[1:])              # strip leading zeros
-        exp_str = f"{sign}{exp_int}" if sign == "-" else str(exp_int)
-        return f"{mantissa}×10^{exp_str}"
-
-    param_str = ""
-    if params is not None:
-        parts = [f"{k}={_fmt_param(v)}" for k, v in params.items()]
-        n_per_line = 5
-        lines = [" | ".join(parts[i:i + n_per_line]) for i in range(0, len(parts), n_per_line)]
-        param_str = "\n".join(lines)
+    param_lines = _format_param_footer(params)
 
     # ── Figure ────────────────────────────────────────────────────────────────
     # (14, 7): each panel ~6" wide after margins/colorbar, equal-aspect clamps
@@ -465,13 +523,17 @@ def validate_hnw_swe_combined(hnw_df, swe_df, model_name,
     add_subplot_labels(axes)
 
     fig.suptitle(model_name)
-    fig.tight_layout()
 
-    # Param string sits below the subplots, clear of the x-axis labels
-    if param_str:
-        fig.text(0.5, -0.02, param_str,
-                 ha="center", va="top",
-                 fontsize=8, color="#444444")
+    # Reserve room for the parameter footer inside the figure, so it survives
+    # inline notebook rendering (bbox_inches="tight" only rescues the saved file).
+    footer_h = 0.0 if not param_lines else 0.022 + 0.030 * len(param_lines)
+    fig.tight_layout(rect=(0, footer_h, 1, 1))
+
+    # Model parameters sit below the subplots, clear of the x-axis labels
+    if param_lines:
+        fig.text(0.5, footer_h / 2, "\n".join(param_lines),
+                 ha="center", va="center",
+                 fontsize=9, color="#444444", linespacing=1.7)
 
     if save_dir is not None:
         os.makedirs(save_dir, exist_ok=True)

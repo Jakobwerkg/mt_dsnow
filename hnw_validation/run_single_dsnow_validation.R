@@ -40,23 +40,24 @@ ROOT <- find_project_root()
 # SETTINGS
 # ─────────────────────────────────────────────────────────────────────────────
 Mag25_nc_file    <- file.path(ROOT, "calibration/calibration_data/raw_data/mag25/slf_dataset/Mag25_all.nc")
-out_nc_file      <- file.path(ROOT, "hnw_validation/validation_data/dsnow2.0_default.nc")
+out_nc_file      <- file.path(ROOT, "hnw_validation/validation_data/dsnow_best_Win21.nc")
 
 exclude_stations <- c("Weisfluh_Joch")
 
 # Use dynamic rho_max parameterisation?  FALSE = static (Winkler 2021 style)
-dyn_rho_max <- TRUE
+dyn_rho_max <- FALSE
 
-# # Model parameters — uncomment and edit to override nixmass defaults
-# model_opts <- list(
-#         rho.max  = 380.012,
-#         rho.null = 101.166,
-#         c.ov     = 0.0006,
-#         k.ov     = 0.4117,
-#         k        = 0.0269,
-#         tau      = 0.0227,
-#         eta.null = 8.2325e+06
-# )
+# Model parameters — uncomment and edit to override nixmass defaults
+model_opts <- list(
+        rho.max  = 359.1366,
+        rho.null = 99.5503,
+        c.ov     = 0.00054050,
+        k.ov     = 0.5144,
+        k        = 0.0411,
+        tau      = 7.0609e-05,
+        eta.null = 8.8665e+06
+)
+
 
 
 
@@ -90,7 +91,7 @@ run_dsnow <- function(dates, hs_m, model_opts, dyn_rho_max) {
   df  <- data.frame(date = as.character(dates), hs = hs, stringsAsFactors = FALSE)
   out <- tryCatch(
     nixmass::swe.delta.snow(df,
-                            # model_opts  = model_opts,
+                            model_opts  = model_opts,
                             dyn_rho_max = dyn_rho_max,
                             layers      = FALSE,
                             strict_mode = FALSE,
@@ -109,7 +110,6 @@ run_dsnow <- function(dates, hs_m, model_opts, dyn_rho_max) {
 # ─────────────────────────────────────────────────────────────────────────────
 stopifnot(file.exists(Mag25_nc_file))
 nc_in <- nc_open(Mag25_nc_file)
-on.exit(nc_close(nc_in), add = TRUE)
 
 time_dim   <- nc_in$dim[["time"]]
 time_raw   <- time_dim$vals
@@ -135,6 +135,8 @@ HNW_obs_all <- if ("HNW" %in% avail_vars) {
 
 Nt <- length(dates_all)
 Ns <- length(station_names)
+nc_close(nc_in)
+
 message(sprintf("Loaded: %d stations × %d days  (%s – %s)",
                 Ns, Nt, dates_all[1], dates_all[Nt]))
 
@@ -195,7 +197,7 @@ v_swe_obs <- ncvar_def("SWE_obs",      "mm", list(dim_station, dim_time),  missv
 v_hnw_obs <- ncvar_def("HNW_obs",      "mm", list(dim_station, dim_time),  missval = NA_real_, prec = "double")
 
 nc_out <- nc_create(out_nc_file, vars = list(v_stn, v_swe_mod, v_hnw_mod, v_swe_obs, v_hnw_obs))
-on.exit(nc_close(nc_out), add = TRUE)   # guarantees close even if a put fails
+# on.exit() would not fire at top level, so close explicitly (and on error).
 
 ncvar_put(nc_out, v_stn,     station_names)
 ncvar_put(nc_out, v_swe_mod, SWE_mod_all)
@@ -221,5 +223,7 @@ param_str <- paste(mapply(function(k, v) sprintf("%s=%g", k, v),
 ncatt_put(nc_out, 0, "dsnow_parameters", param_str)
 ncatt_put(nc_out, 0, "dyn_rho_max",      as.integer(dyn_rho_max))
 ncatt_put(nc_out, 0, "source",           "nixmass::swe.delta.snow")
+
+nc_close(nc_out)
 
 message("Wrote: ", out_nc_file)
