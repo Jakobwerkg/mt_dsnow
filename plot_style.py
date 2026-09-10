@@ -85,8 +85,8 @@ class C:
     DSNOW     = "#E69F00"   # amber        — ΔSnow model
     HS2SWE    = "#009E73"   # blue-green   — HS2SWE model
     HS        = "#999999"   # mid-grey     — snow height (hs), auxiliary
-    NM        = "#35A6DF"  #
-    DE        = "#882255"   # dark grey    — Differential Evolution optimizer
+    NM        = "#1B6B9C"  #
+    DE        = "#8A8A8A"   # dark grey    — Differential Evolution optimizer
 
 
 
