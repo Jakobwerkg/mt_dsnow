@@ -120,7 +120,7 @@ class FIG:
     BOX4    = (12,  5)   # 1×4 side-by-side boxplots
     SCAT1   = (6,  6)       # single scatter plots
 
-    DPI  = 800
+    DPI  = 500
     SAVE = dict(dpi=DPI, bbox_inches="tight", format="png")
 
 

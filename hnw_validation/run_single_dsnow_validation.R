@@ -40,23 +40,24 @@ ROOT <- find_project_root()
 # SETTINGS
 # ─────────────────────────────────────────────────────────────────────────────
 Mag25_nc_file    <- file.path(ROOT, "calibration/calibration_data/raw_data/mag25/slf_dataset/Mag25_all.nc")
-out_nc_file      <- file.path(ROOT, "hnw_validation/validation_data/dsnow_best_Win21.nc")
+out_nc_file      <- file.path(ROOT, "hnw_validation/validation_data/dsnow_default.nc")
 
 exclude_stations <- c("Weisfluh_Joch")
 
 # Use dynamic rho_max parameterisation?  FALSE = static (Winkler 2021 style)
 dyn_rho_max <- FALSE
 
+
 # Model parameters — uncomment and edit to override nixmass defaults
-model_opts <- list(
-        rho.max  = 359.1366,
-        rho.null = 99.5503,
-        c.ov     = 0.00054050,
-        k.ov     = 0.5144,
-        k        = 0.0411,
-        tau      = 7.0609e-05,
-        eta.null = 8.8665e+06
-)
+model_opts <- list( rho.max=401.2588, rho.null=81.19417, c.ov=0.0005104722, k.ov=0.37856737, k=0.02993175, tau=0.02362476, eta.null=8523356)
+#         rho.max  = 359.1366,
+#         rho.null = 99.5503,
+#         c.ov     = 0.00054050,
+#         k.ov     = 0.5144,
+#         k        = 0.0411,
+#         tau      = 7.0609e-05,
+#         eta.null = 8.8665e+06
+# )
 
 
 

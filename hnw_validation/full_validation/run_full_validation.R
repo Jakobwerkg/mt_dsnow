@@ -65,7 +65,7 @@ ROOT <- find_project_root()
 # SETTINGS
 # ─────────────────────────────────────────────────────────────────────────────
 BASE_DIR    <- ROOT
-SUMMARY_CSV <- file.path(BASE_DIR, "calibration/optimisation_output/helpers/all_summaries.csv")
+SUMMARY_CSV <- file.path(BASE_DIR, "calibration/optimisation_output/combinded_res/all_summaries.csv")
 MAG25_NC    <- file.path(BASE_DIR, "calibration/calibration_data/raw_data/mag25/slf_dataset/Mag25_all.nc")
 EXCLUDE_STATIONS <- c("Weisfluh_Joch")
 
@@ -234,7 +234,9 @@ METRIC_NAMES <- c("SWE_RMSE", "SWE_Bias", "SWE_Rel_BIAS", "SWE_R2", "SWE_N",
 nc_workers <- max(1L, parallel::detectCores(logical = TRUE) - 1L)
 cl <- parallel::makeCluster(nc_workers)
 registerDoParallel(cl)
-on.exit(parallel::stopCluster(cl), add = TRUE)
+# NOTE: no on.exit(stopCluster) here. At the top level of a source()d script
+# on.exit fires right after its own line (killing the cluster before use ->
+# "invalid connection"); the cluster is stopped in the `finally` below instead.
 
 parallel::clusterExport(cl, c(
   "HS_all", "SWE_obs_all", "HNW_obs_all", "dates_all", "station_names",
@@ -246,12 +248,18 @@ invisible(clusterEvalQ(cl, suppressPackageStartupMessages(library(nixmass))))
 message(sprintf("Running validation on %d cores...", nc_workers))
 t0 <- Sys.time()
 
-metrics_mat <- foreach(i = seq_len(nrow(opt)), .combine = rbind,
-                       .packages = "nixmass") %dopar% {
-  if (!has_par[i]) return(setNames(rep(NA_real_, length(METRIC_NAMES)), METRIC_NAMES))
+metrics_mat <- tryCatch(
+  foreach(i = seq_len(nrow(opt)), .combine = rbind,
+          .packages = "nixmass") %dopar% {
+    if (!has_par[i]) return(setNames(rep(NA_real_, length(METRIC_NAMES)), METRIC_NAMES))
 
-  validate_one(to_model_opts(opt[i, ]), DYN_RHO_MAX)
-}
+    validate_one(to_model_opts(opt[i, ]), DYN_RHO_MAX)
+  },
+  finally = {
+    parallel::stopCluster(cl)
+    foreach::registerDoSEQ()   # don't leave a dead cluster registered as backend
+  }
+)
 
 metrics_df <- as.data.frame(metrics_mat, row.names = FALSE)
 names(metrics_df) <- METRIC_NAMES
@@ -275,3 +283,4 @@ show_cols <- intersect(c("subset", "dataset", "phase", "algorithm",
 print(utils::head(opt_out[, show_cols], 10), row.names = FALSE)
 
 message("\nWrote: ", OUT_CSV)
+
