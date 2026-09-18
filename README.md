@@ -60,9 +60,11 @@ dataset and figure is reproduced by running the scripts and notebooks in order.
 |---|---|
 | `calibration/calibration_data/` | Raw-data ingestion, quality checks and conversion of all three datasets into common `.nc` / `.rda` / `.csv` formats. Per-dataset subfolders under `raw_data/` (`win21`, `mag25`) and `snowpack_data/`. |
 | `calibration/calibration_win21/`, `calibration/calibration_snowpack/` | ΔSnow parameter optimisation in R — `_nm.R` = Nelder–Mead, `_de.R` = Differential Evolution. |
+| `calibration/calibration_rho_dyn/` | Calibration of **ΔSNOW2.0** (dynamic ρ_max, 10 parameters): optimiser, result collection, Mag25 validation and the ranking notebook `rho_dyn_results_overview.ipynb`. Pipeline and data requirements in `calibration/README.md`. |
 | `calibration/optimisation_output/` | One directory per subset (`win21`, `sp_all`, `sp_rg`, `sp_b2000`, `dyn_rho_max`) holding that run's input data, optimiser logs and result summaries. `helpers/` collects and tabulates them. |
 | `hnw_validation/` | Independent validation of the calibrated parameter sets against observed new-snow water equivalent (HNW) and SWE. `full_validation/` runs all parameter sets; results are plotted in `plot_validation_results.ipynb`. |
 | `par_sens/` | Morris parameter-sensitivity analysis, run separately per dataset and compared jointly in `morris_comparison.ipynb`. |
+| `peak_SWE/` | Peak-SWE evaluation: the seasonal maximum of the Mag25 pits per station-season vs. ΔSNOW on that day (SWE and bulk density), for every calibrated run and the two nixmass default runs (`run_dsnow_defaults.R`); analysed in `peak_swe_comparison.ipynb`. |
 | `plot_style.py` | Project-wide plot style — colours, linestyles, subset labels, subplot lettering. Imported by every notebook. |
 
 ## Running the calibration
@@ -73,14 +75,17 @@ dataset and figure is reproduced by running the scripts and notebooks in order.
 ```
 
 The SNOWPACK scripts pick their subset from the `DSNOW_SUBSET` environment variable
-(`sp_all`, `sp_rg`, `sp_b2000`, `dyn_rho_max`; default `sp_rg`):
+(`sp_all`, `sp_rg`, `sp_b2000`; the ΔSNOW2.0 script also accepts `win21`. Defaults: `sp_all` for the
+data preparation and the ΔSNOW2.0 script, `sp_rg` for the static SNOWPACK optimisers):
 
 ```bash
 DSNOW_SUBSET=sp_b2000 Rscript calibration/calibration_snowpack/prepare_snowpack_data.R
 DSNOW_SUBSET=sp_b2000 Rscript calibration/calibration_snowpack/dsnow_parameter_optimization_de.R 0.5 0.5 0 0
 ```
 
-Each subset reads and writes `calibration/optimisation_output/<subset>/data/`.
+Each subset reads and writes `calibration/optimisation_output/<subset>/data/`. Which datasets each
+script needs (daily vs. bi-weekly SWE, gap-free HS) and the ΔSNOW2.0 pipeline step by step:
+[`calibration/README.md`](calibration/README.md).
 
 ## Conventions
 
@@ -91,3 +96,11 @@ Each subset reads and writes `calibration/optimisation_output/<subset>/data/`.
 - All figures use `plot_style.py` so colours and labels stay consistent across the thesis.
 - `Archive/` folders hold superseded work and are **git-ignored** (local only), as are
   data files, figures and other large outputs.
+
+---
+
+*AI assistance:* `calibration/README.md`, the `calibration_rho_dyn` / `peak_SWE` entries in the folder table
+above and parts of `peak_SWE/peak_swe_comparison.ipynb` (bulk-density ρ_bulk = SWE/HS panels, the 2 × 3
+reference figure, the median bias, the `MAX_ALT` station switch) as well as the ranked-table export of
+`calibration/calibration_rho_dyn/rho_dyn_results_overview.ipynb` were written with **Claude Opus 5**
+(Anthropic) on 2026-09-18, under the direction of the author.
