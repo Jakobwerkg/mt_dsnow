@@ -90,7 +90,7 @@ ROOT <- find_project_root()
 # (de_res/ and nm_res/), separate from the static-rho.max calibrations.
 # -----------------------------------------------------------------------------
 
-SUBSET <- Sys.getenv("DSNOW_SUBSET", "sp_b2000")
+SUBSET <- Sys.getenv("DSNOW_SUBSET", "sp_all")
 
 SUBSETS <- list(
   sp_all   = list(obs_file = "d_obs_SNOWPACK.rda", hs_scale = 1,

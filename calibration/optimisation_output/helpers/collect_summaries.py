@@ -21,12 +21,14 @@ from pathlib import Path
 
 import pandas as pd
 
-HERE    = Path('calibration/optimisation_output')          # .../optimisation_output
+HERE    = Path('calibration/optimisation_output/')          # .../optimisation_output
 
 print(HERE)
 
 
-OUT_CSV = HERE / "workflow_helper/all_summaries.csv"
+
+
+OUT_CSV = "calibration/optimisation_output/combinded_res/all_summaries.csv"
 
 
 def main() -> None:

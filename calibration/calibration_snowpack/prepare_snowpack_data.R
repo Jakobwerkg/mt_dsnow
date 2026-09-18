@@ -30,7 +30,7 @@ ROOT <- find_project_root()
 # Which SNOWPACK subset to prepare.
 # Override without editing this file:  DSNOW_SUBSET=sp_b2000 Rscript <script>
 # -----------------------------------------------------------------------------
-SUBSET <- Sys.getenv("DSNOW_SUBSET", "sp_rg")
+SUBSET <- Sys.getenv("DSNOW_SUBSET", "sp_all")
 
 # subset -> raw .smet directory under calibration_data/snowpack_data/
 SUBSET_INPUT <- c(

@@ -30,52 +30,52 @@ run_phase() {
   "$RUN" "$w1" "$w2" "$w3" "$w4" "$w5" "$w6"
 }
 
+# # # ------------------------------------------------------------
+# # # PHASE 1 — NRMSE only, no bias
+# # # ------------------------------------------------------------
+# run_phase "Phase 1A — SWE-only baseline"           1.0 0.0 0.0 0.0
+# run_phase "Phase 1B — Density-only extreme"        0.0 1.0 0.0 0.0
+
 # # ------------------------------------------------------------
-# # PHASE 1 — NRMSE only, no bias
+# # PHASE 2 — Balanced NRMSE sweep (no bias)
 # # ------------------------------------------------------------
-run_phase "Phase 1A — SWE-only baseline"           1.0 0.0 0.0 0.0
-run_phase "Phase 1B — Density-only extreme"        0.0 1.0 0.0 0.0
+# run_phase "Phase 2A — SWE-dominant   (0.7/0.3)"   0.7 0.3 0.0 0.0
+# run_phase "Phase 2B — Equal weight   (0.5/0.5)"   0.5 0.5 0.0 0.0
+# run_phase "Phase 2C — Density-dom.   (0.3/0.7)"   0.3 0.7 0.0 0.0
 
-# ------------------------------------------------------------
-# PHASE 2 — Balanced NRMSE sweep (no bias)
-# ------------------------------------------------------------
-run_phase "Phase 2A — SWE-dominant   (0.7/0.3)"   0.7 0.3 0.0 0.0
-run_phase "Phase 2B — Equal weight   (0.5/0.5)"   0.5 0.5 0.0 0.0
-run_phase "Phase 2C — Density-dom.   (0.3/0.7)"   0.3 0.7 0.0 0.0
+# # ------------------------------------------------------------
+# # PHASE 3 — SWE bias penalty (NRMSE + SWE bias, no RHO bias)
+# # ------------------------------------------------------------
+# run_phase "Phase 3A — Balanced NRMSE + SWE bias   (0.6/0.2/0.2/0.0)" 0.6 0.2 0.2 0.0
+# run_phase "Phase 3B — SWE-dominant + SWE bias     (0.7/0.0/0.3/0.0)" 0.7 0.0 0.3 0.0
+# run_phase "Phase 3C — Density-dominant + SWE bias (0.3/0.5/0.2/0.0)" 0.3 0.5 0.2 0.0
 
-# ------------------------------------------------------------
-# PHASE 3 — SWE bias penalty (NRMSE + SWE bias, no RHO bias)
-# ------------------------------------------------------------
-run_phase "Phase 3A — Balanced NRMSE + SWE bias   (0.6/0.2/0.2/0.0)" 0.6 0.2 0.2 0.0
-run_phase "Phase 3B — SWE-dominant + SWE bias     (0.7/0.0/0.3/0.0)" 0.7 0.0 0.3 0.0
-run_phase "Phase 3C — Density-dominant + SWE bias (0.3/0.5/0.2/0.0)" 0.3 0.5 0.2 0.0
+# # ------------------------------------------------------------
+# # PHASE 4 — RHO bias penalty (NRMSE + RHO bias, no SWE bias)
+# # ------------------------------------------------------------
+# run_phase "Phase 4A — Balanced NRMSE + RHO bias   (0.6/0.2/0.0/0.2)" 0.6 0.2 0.0 0.2
+# run_phase "Phase 4B — SWE-dominant + RHO bias     (0.7/0.1/0.0/0.2)" 0.7 0.1 0.0 0.2
+# run_phase "Phase 4C — Density-dominant + RHO bias (0.3/0.5/0.0/0.2)" 0.3 0.5 0.0 0.2
 
-# ------------------------------------------------------------
-# PHASE 4 — RHO bias penalty (NRMSE + RHO bias, no SWE bias)
-# ------------------------------------------------------------
-run_phase "Phase 4A — Balanced NRMSE + RHO bias   (0.6/0.2/0.0/0.2)" 0.6 0.2 0.0 0.2
-run_phase "Phase 4B — SWE-dominant + RHO bias     (0.7/0.1/0.0/0.2)" 0.7 0.1 0.0 0.2
-run_phase "Phase 4C — Density-dominant + RHO bias (0.3/0.5/0.0/0.2)" 0.3 0.5 0.0 0.2
+# # ------------------------------------------------------------
+# # PHASE 5 — Both bias terms (NRMSE + SWE bias + RHO bias)
+# # ------------------------------------------------------------
+# run_phase "Phase 5A — Balanced NRMSE + both bias   (0.4/0.4/0.1/0.1)"   0.4  0.4  0.10 0.10
+# run_phase "Phase 5B — SWE-dominant + both bias     (0.8/0.1/0.05/0.05)" 0.8  0.1  0.05 0.05
+# run_phase "Phase 5C — Density-dominant + both bias (0.1/0.8/0.05/0.05)" 0.1  0.8  0.05 0.05
+# run_phase "Phase 5D — Bias-focused                 (0.25/0.25/0.25/0.25)" 0.25 0.25 0.25 0.25
+# run_phase "Phase 5E — Bias-only                    (0.0/0.0/0.5/0.5)"  0.0  0.0  0.50 0.50
 
-# ------------------------------------------------------------
-# PHASE 5 — Both bias terms (NRMSE + SWE bias + RHO bias)
-# ------------------------------------------------------------
-run_phase "Phase 5A — Balanced NRMSE + both bias   (0.4/0.4/0.1/0.1)"   0.4  0.4  0.10 0.10
-run_phase "Phase 5B — SWE-dominant + both bias     (0.8/0.1/0.05/0.05)" 0.8  0.1  0.05 0.05
-run_phase "Phase 5C — Density-dominant + both bias (0.1/0.8/0.05/0.05)" 0.1  0.8  0.05 0.05
-run_phase "Phase 5D — Bias-focused                 (0.25/0.25/0.25/0.25)" 0.25 0.25 0.25 0.25
-run_phase "Phase 5E — Bias-only                    (0.0/0.0/0.5/0.5)"  0.0  0.0  0.50 0.50
-
-# ------------------------------------------------------------
-# PHASE 6 — KGE (one run per variable, symmetric substitution)
-# ------------------------------------------------------------
-run_phase "Phase 6A — KGE SWE + NRMSE RHO balanced (0.0/0.5/0.0/0.0/0.5/0.0)" 0.0 0.5 0.0 0.0 0.5 0.0
+# # ------------------------------------------------------------
+# # PHASE 6 — KGE (one run per variable, symmetric substitution)
+# # ------------------------------------------------------------
+# run_phase "Phase 6A — KGE SWE + NRMSE RHO balanced (0.0/0.5/0.0/0.0/0.5/0.0)" 0.0 0.5 0.0 0.0 0.5 0.0
 run_phase "Phase 6B — NRMSE SWE + KGE RHO balanced (0.5/0.0/0.0/0.0/0.0/0.5)" 0.5 0.0 0.0 0.0 0.0 0.5
 run_phase "Phase 6C — KGE SWE                      (0.0/0.0/0.0/0.0/1.0/0.0)" 0.0 0.0 0.0 0.0 1.0 0.0
 run_phase "Phase 6D — KGE RHO                      (0.0/0.0/0.0/0.0/0.0/1.0)" 0.0 0.0 0.0 0.0 0.0 1.0
 
 
-# echo ""
-# echo "###################################################"
-# echo "#  All phases complete."
-# echo "###################################################"
+echo ""
+echo "###################################################"
+echo "#  All phases complete."
+echo "###################################################"

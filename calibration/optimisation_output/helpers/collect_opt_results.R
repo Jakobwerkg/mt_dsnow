@@ -46,7 +46,8 @@ ROOT <- find_project_root()
 # ============================================================
 # USER SETTINGS — change paths here
 # ============================================================
-SEARCH_DIR <- file.path(ROOT, "calibration/optimisation_output/win21/data")
+
+SEARCH_DIR <- file.path(ROOT, "calibration/optimisation_output/win21")
 
 
 

@@ -15,9 +15,18 @@
 #   NBIAS = |mean(mod - obs)| / mean(obs)
 #   KGE   = 1 - sqrt((r-1)^2 + (beta-1)^2 + (alpha-1)^2)   [Gupta et al. 2009]
 #
+# The optimiser searches the scaled parameter space (par / par_scale) so that
+# all seven parameters are of order 1; minimize_score() multiplies back by
+# par_scale to recover physical units.
+#
 # Command-line usage (all weights optional, positional):
 #   Rscript script.R <w_swe_nrmse> <w_rho_nrmse> <w_swe_bias> <w_rho_bias>
 #                    <w_kge_swe> <w_kge_rho> [itermax]
+#
+# This script shares its data handling, objective function, parameter bounds
+# and output format with the Nelder-Mead script next to it and with the
+# corresponding pair for the other dataset; only the blocks marked
+# "DATASET-SPECIFIC" and "OPTIMIZER-SPECIFIC" differ.
 #
 ##############################################################################
 
@@ -55,12 +64,17 @@ find_project_root <- function(start = NULL) {
 
 ROOT <- find_project_root()
 
+# =============================================================================
+# DATASET-SPECIFIC SETTINGS  (the only place the Win21 and SNOWPACK scripts
+# are allowed to differ in what they compute)
+# =============================================================================
+
 # -----------------------------------------------------------------------------
 # SNOWPACK subset to calibrate on.
 # Override without editing this file:  DSNOW_SUBSET=sp_b2000 Rscript <script>
 #
-#   sp_all      all 18 Alpsolut stations
-#   sp_rg       rain-gauge subset
+#   sp_all      all 18 Alpsolut stations ----> done new
+#   sp_rg       rain-gauge subset.       ----> 
 #   sp_b2000    stations below 2000 m a.s.l.
 #   dyn_rho_max rain-gauge subset, dynamic rho_max variant
 #
@@ -68,17 +82,37 @@ ROOT <- find_project_root()
 # (d_obs_SNOWPACK.rda, written by calibration_snowpack/prepare_snowpack_data.R)
 # and the optimiser logs.
 # -----------------------------------------------------------------------------
+
+# SUBSET   <- Sys.getenv("DSNOW_SUBSET", "sp_all")
+
 SUBSET   <- Sys.getenv("DSNOW_SUBSET", "sp_rg")
+
+# SUBSET   <- Sys.getenv("DSNOW_SUBSET", "sp_b2000")
+
+
+
 DATA_DIR <- file.path(ROOT, "calibration", "optimisation_output", SUBSET, "data")
 
+OBS_FILE <- "d_obs_SNOWPACK.rda"   # prepared observations inside DATA_DIR
+
+HS_SCALE <- 1                 # SMET files already store HS in m
+
+DYN_RHO_MAX <- TRUE           # SNOWPACK runs use the dynamic maximum bulk density
+
+# No stations are held out for SNOWPACK; the vectors exist so that the shared
+# code below is identical to the Win21 scripts.
+#   DROP_STATIONS    removed from the data entirely (never fitted, never validated)
+#   FIT_ONLY_EXCLUDE kept as independent validation stations, never fitted
+DROP_STATIONS    <- character(0)
+FIT_ONLY_EXCLUDE <- character(0)
 
 # =============================================================================
 # CONFIGURATION
 # =============================================================================
 
 # --- Default weights (overridden by command-line args if provided) ---
-WEIGHT_SWE_NRMSE <- 0.2
-WEIGHT_RHO_NRMSE <- 0.8
+WEIGHT_SWE_NRMSE <- 1.0
+WEIGHT_RHO_NRMSE <- 0.0
 WEIGHT_SWE_NBIAS <- 0.0
 WEIGHT_RHO_NBIAS <- 0.0
 WEIGHT_SWE_KGE   <- 0.0
@@ -107,8 +141,15 @@ SEASON_MONTH <- 8          # month used to assign season label
 # --- Model settings ---
 EPS <- 1e-6                # minimum snow depth [m] for density calculation
 
+# --- deltaSNOW parameters, in the order the model expects them ---
+PAR_NAMES <- c("rho.max", "rho.null", "c.ov", "k.ov", "k", "tau", "eta.null")
+
+# =============================================================================
+# OPTIMIZER-SPECIFIC SETTINGS
+# =============================================================================
+
 # --- Differential Evolution settings ---
-DE_ITERMAX  <- 100
+DE_ITERMAX  <- 100         # generations (7th positional argument overrides)
 DE_NP       <- 70          # population size (rule of thumb: 10 * n_params)
 DE_F        <- 0.8         # differential weight
 DE_CR       <- 0.9         # crossover probability
@@ -116,13 +157,20 @@ DE_STRATEGY <- 2           # 2 = DE/local-to-best/1/bin
 
 if (length(.args) >= 7) DE_ITERMAX <- as.integer(.args[7])
 
+# --- Where results are written (relative to DATA_DIR) ---
+LOG_SUBDIR    <- "R_opt_logs_DE"
+RESULT_PREFIX <- "opt_results_DE__"
+
 # =============================================================================
 # DATA
 # =============================================================================
 
 d_obs <- get(load(
-  file.path(DATA_DIR, "d_obs_SNOWPACK.rda")
+  file.path(DATA_DIR, OBS_FILE)
 ))
+
+# Stations removed from the data entirely (see DATASET-SPECIFIC SETTINGS)
+d_obs <- d_obs[setdiff(names(d_obs), DROP_STATIONS)]
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -260,9 +308,13 @@ for (station in names(d_obs)) {
 # CONVERT ZOO TO TIBBLE
 # =============================================================================
 
-zoo_to_tibble <- function(obs_list) {
+zoo_to_tibble <- function(obs_list, exclude = character(0)) {
   out <- list()
   for (station in names(obs_list)) {
+    if (station %in% exclude) {
+      cat("Skipping", station, "— held out of this set\n"); next
+    }
+
     x <- obs_list[[station]]
     if (is.null(x) || length(x) == 0) next
 
@@ -276,7 +328,7 @@ zoo_to_tibble <- function(obs_list) {
     out[[station]] <- tibble(
       date    = as.Date(index(x)),
       name    = station,
-      hs      = dat$Hobs,
+      hs      = dat$Hobs * HS_SCALE,   # -> m
       swe_obs = dat$SWEobs,
       block   = set_season(index(x))
     )
@@ -284,20 +336,28 @@ zoo_to_tibble <- function(obs_list) {
   bind_rows(out)
 }
 
-d_obs_fit_tibble <- zoo_to_tibble(d_obs_fit)
+# FIT_ONLY_EXCLUDE stations stay in the validation set but are never fitted.
+d_obs_fit_tibble <- zoo_to_tibble(d_obs_fit, exclude = FIT_ONLY_EXCLUDE)
 d_obs_val_tibble <- zoo_to_tibble(d_obs_val)
+
+cat("\nFit set       :", length(unique(d_obs_fit_tibble$name)), "stations,",
+    nrow(d_obs_fit_tibble), "days\n")
+cat("Validation set:", length(unique(d_obs_val_tibble$name)), "stations,",
+    nrow(d_obs_val_tibble), "days\n")
 
 # =============================================================================
 # OBJECTIVE FUNCTION
 # =============================================================================
 
-minimize_score_de <- function(par, data, verbose = FALSE) {
+minimize_score <- function(par, data, scale, verbose = FALSE) {
 
   result <- tryCatch({
 
+    par_real <- par * scale
+
     if (verbose) {
-      nms <- c("rho.max", "rho.null", "c.ov", "k.ov", "k", "tau", "eta.null")
-      cat("params =", paste(paste0(nms, "=", round(par, 6)), collapse = ", "), "\n")
+      cat("scaled   =", paste(paste0(PAR_NAMES, "=", round(par,      6)), collapse = ", "), "\n")
+      cat("unscaled =", paste(paste0(PAR_NAMES, "=", round(par_real, 6)), collapse = ", "), "\n")
     }
 
     # Run model per station and season block in parallel
@@ -325,12 +385,12 @@ minimize_score_de <- function(par, data, verbose = FALSE) {
             mutate(date = as.character(date)) %>%
             nixmass::swe.delta.snow(
               model_opts = list(
-                rho.max  = par[1], rho.null = par[2],
-                c.ov     = par[3], k.ov     = par[4],
-                k        = par[5], tau      = par[6],
-                eta.null = par[7]
+                rho.max  = par_real[1], rho.null = par_real[2],
+                c.ov     = par_real[3], k.ov     = par_real[4],
+                k        = par_real[5], tau      = par_real[6],
+                eta.null = par_real[7]
               ),
-              dyn_rho_max = TRUE
+              dyn_rho_max = DYN_RHO_MAX
             ),
           error = function(e) rep(NA_real_, nrow(joined))
         )
@@ -355,16 +415,17 @@ minimize_score_de <- function(par, data, verbose = FALSE) {
 
     if (verbose && !is.null(metrics)) {
       cat(sprintf(
-        "| bias=%.4f | RMSE_SWE=%.4f | NRMSE_SWE=%.4f | NBIAS_SWE=%.4f | NBIAS_rho=%.4f | KGE_SWE=%.4f | NRMSE_rho=%.4f | KGE_rho=%.4f | score=%.4f\n",
-        metrics$bias_swe, metrics$rmse_swe, metrics$nrmse_swe,
-        metrics$nbias_swe, metrics$nbias_rho, metrics$kge_swe,
-        metrics$nrmse_rho, metrics$kge_rho, score
+        "| bias=%.4f | RMSE_SWE=%.4f | NRMSE_SWE=%.4f | NBIAS_SWE=%.4f | NBIAS_rho=%.4f | KGE_SWE=%.4f | KGE_rho=%.4f | NRMSE_rho=%.4f | score=%.4f\n",
+        metrics$bias_swe,  metrics$rmse_swe,  metrics$nrmse_swe,
+        metrics$nbias_swe, metrics$nbias_rho,
+        metrics$kge_swe,   metrics$kge_rho,
+        metrics$nrmse_rho, score
       ))
     } else {
       cat("Score =", round(score, 4), "\n")
     }
 
-    score
+    return(score)
 
   }, error = function(e) { cat("Error:", e$message, "\n"); 1e12 })
 
@@ -373,17 +434,44 @@ minimize_score_de <- function(par, data, verbose = FALSE) {
 }
 
 # =============================================================================
-# PARAMETER BOUNDS
+# PARAMETER BOUNDS AND START VALUES
 # =============================================================================
 
-par_lower <- c(rho.max = 300,  rho.null = 50,  c.ov = 1e-6,
-               k.ov    = 0.01, k        = 0.01, tau = 0.01, eta.null = 1e6)
+# Physical (unscaled) parameter bounds — Schellander reference ranges.
+par_lower <- c(rho.max  = 300,  rho.null = 50,  c.ov = 1e-6,
+               k.ov     = 0.01, k        = 0.01, tau = 0.01, eta.null = 1e6)
 
-par_upper <- c(rho.max = 600,  rho.null = 200, c.ov = 1e-3,
-               k.ov    = 10.0, k        = 0.2,  tau = 0.2,  eta.null = 2e7)
+par_upper <- c(rho.max  = 600,  rho.null = 200, c.ov = 1e-3,
+               k.ov     = 10,   k        = 0.2,  tau = 0.2,  eta.null = 2e7)
 
-cat("\nParameter bounds:\n")
+# Physical start values
+par_delta <- c(
+  rho.max  = 401.2588,
+  rho.null = 81.19417,
+  c.ov     = 0.0005104722,
+  k.ov     = 0.37856737,
+  k        = 0.02993175,
+  tau      = 0.02362476,
+  eta.null = 8523356
+)
+
+stopifnot(
+  identical(names(par_lower), PAR_NAMES),
+  identical(names(par_upper), PAR_NAMES),
+  identical(names(par_delta), PAR_NAMES)
+)
+
+# Per-parameter scaling so the optimizer works on values of order 1.
+# minimize_score multiplies back by `scale` to recover physical units.
+par_scale <- c(1000, 1000, 0.001, 1, 0.1, 0.1, 1e7)
+par_start <- par_delta / par_scale
+
+cat("\nParameter bounds (physical):\n")
 print(rbind(lower = par_lower, upper = par_upper))
+cat("In-bounds check:\n")
+print(ifelse(par_lower <= par_delta & par_delta <= par_upper, "in bounds", "ERROR"))
+cat("\nStarting parameters (scaled):\n");   print(par_start)
+cat("\nStarting parameters (unscaled):\n"); print(par_start * par_scale)
 
 # =============================================================================
 # PARALLEL SETUP
@@ -394,8 +482,10 @@ cl <- parallel::makeCluster(nc)
 doParallel::registerDoParallel(cl)
 
 parallel::clusterExport(cl, c(
-  "WEIGHT_SWE_NRMSE", "WEIGHT_RHO_NRMSE", "WEIGHT_SWE_NBIAS", "WEIGHT_RHO_NBIAS",
-  "WEIGHT_SWE_KGE",   "WEIGHT_RHO_KGE",   "EPS",
+  "WEIGHT_SWE_NRMSE", "WEIGHT_RHO_NRMSE",
+  "WEIGHT_SWE_NBIAS", "WEIGHT_RHO_NBIAS",
+  "WEIGHT_SWE_KGE",   "WEIGHT_RHO_KGE",
+  "EPS", "DYN_RHO_MAX", "PAR_NAMES",
   "rmse", "nrmse", "nbias", "kge", "combined_score"
 ))
 
@@ -403,12 +493,9 @@ parallel::clusterExport(cl, c(
 # TEST AT INITIAL GUESS
 # =============================================================================
 
-par_init <- c(rho.max  = 401.2588,   rho.null = 81.19417, c.ov = 0.0005104722,
-              k.ov     = 0.37856737, k        = 0.02993175, tau = 0.02362476,
-              eta.null = 8523356)
-
-cat("\nTesting at initial guess...\n")
-cat("Initial score =", minimize_score_de(par_init, d_obs_fit_tibble, verbose = TRUE), "\n")
+cat("\nTesting objective function at start values...\n")
+cat("Initial score =",
+    minimize_score(par_start, d_obs_fit_tibble, scale = par_scale, verbose = TRUE), "\n")
 
 # =============================================================================
 # OPTIMIZATION
@@ -418,12 +505,13 @@ cat("\nStarting Differential Evolution...\n")
 cat(sprintf("  NP=%d  itermax=%d  F=%.2f  CR=%.2f  strategy=%d\n",
             DE_NP, DE_ITERMAX, DE_F, DE_CR, DE_STRATEGY))
 
-set.seed(123)
+set.seed(123)   # reproducible population
 opt <- DEoptim(
-  fn      = minimize_score_de,
-  lower   = par_lower,
-  upper   = par_upper,
+  fn      = minimize_score,
+  lower   = par_lower / par_scale,
+  upper   = par_upper / par_scale,
   data    = d_obs_fit_tibble,
+  scale   = par_scale,
   verbose = FALSE,
   control = DEoptim.control(
     itermax      = DE_ITERMAX,
@@ -432,21 +520,28 @@ opt <- DEoptim(
     CR           = DE_CR,
     strategy     = DE_STRATEGY,
     trace        = 10,
-    parallelType = 0
+    parallelType = 0   # the objective already parallelises over stations
   )
 )
 
-best_par   <- setNames(opt$optim$bestmem, names(par_lower))
-best_value <- opt$optim$bestval
+best_scaled <- setNames(as.numeric(opt$optim$bestmem), PAR_NAMES)
+best_value  <- opt$optim$bestval
+
+# =============================================================================
+# RESULTS
+# =============================================================================
+
+best_par <- best_scaled * par_scale   # back to physical units
 
 cat("\nOptimization complete!\n")
 cat("Best score:", best_value, "\n")
-cat("Best parameters:\n"); print(best_par)
+cat("Best parameters (scaled):\n");   print(best_scaled)
+cat("Best parameters (unscaled):\n"); print(best_par)
 
 # Print as Python call
 fmt <- function(x) format(x, scientific = FALSE, trim = TRUE, digits = 10)
 cat(sprintf(
-  "\nswe_results = swe_deltasnow(hs,\n  rho_max=%s, rho_null=%s, c_ov=%s,\n  k_ov=%s, k=%s, tau=%s, eta_null=%s\n)\n",
+  "\nswe_results = pydeltasnow.swe_deltasnow(\n    idata,\n    rho_max=%s, rho_null=%s, c_ov=%s,\n    k_ov=%s, k=%s, tau=%s, eta_null=%s,\n    hs_input_unit=\"m\", swe_output_unit=\"mm\", output_series_name=\"SWE_mod\"\n)\n",
   fmt(best_par["rho.max"]),  fmt(best_par["rho.null"]), fmt(best_par["c.ov"]),
   fmt(best_par["k.ov"]),     fmt(best_par["k"]),        fmt(best_par["tau"]),
   fmt(best_par["eta.null"])
@@ -465,9 +560,9 @@ weight_vals <- c(SWE_NRMSE = WEIGHT_SWE_NRMSE, RHO_NRMSE = WEIGHT_RHO_NRMSE,
 
 weight_tag <- paste0(names(weight_vals), "_", fmt_tag(weight_vals), collapse = "__")
 
-save_dir <- file.path(DATA_DIR, "R_opt_logs_DE")
+save_dir <- file.path(DATA_DIR, LOG_SUBDIR)
 dir.create(save_dir, recursive = TRUE, showWarnings = FALSE)
-save_file <- file.path(save_dir, paste0("opt_results_DE__", weight_tag, ".rds"))
+save_file <- file.path(save_dir, paste0(RESULT_PREFIX, weight_tag, ".rds"))
 
 saveRDS(list(
   opt        = opt,
@@ -478,7 +573,7 @@ saveRDS(list(
   val_data   = d_obs_val_tibble
 ), file = save_file)
 
-cat("\nResults saved to:", save_file, "\n")
+cat("\nOptimization finished. Results saved to:\n", save_file, "\n", sep = "")
 
 # =============================================================================
 # CLEANUP
